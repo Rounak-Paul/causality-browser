@@ -1,8 +1,10 @@
 file(GLOB_RECURSE CAUSALITY_BROWSER_ENGINE_SOURCES CONFIGURE_DEPENDS engine/*.c)
+file(GLOB_RECURSE CAUSALITY_BROWSER_BROWSER_SOURCES CONFIGURE_DEPENDS browser/*.c)
 
 add_executable(causality_browser
     main.c
     ${CAUSALITY_BROWSER_ENGINE_SOURCES}
+    ${CAUSALITY_BROWSER_BROWSER_SOURCES}
 )
 
 target_include_directories(causality_browser PRIVATE

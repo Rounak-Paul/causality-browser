@@ -2,10 +2,12 @@
 // Copyright 2026 Rounak Paul.
 
 #include <causality.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "engine/engine.h"
 #include "engine/html/html_parser.h"
+#include "browser/dom_bridge.h"
 
 /* App-level event ids, defined past the engine's reserved range. */
 enum {
@@ -126,9 +128,8 @@ int main(void)
         ENG_LOG_ERROR("app", "failed to create JS context");
     }
 
-    /* HTML smoke test: parse a small fragment (including a deliberately
-       unclosed tag, to confirm gumbo's error-recovery path runs cleanly
-       through the wrapper) and walk the resulting tree. */
+    /* HTML tree-walk sanity check (log-only, kept from the parser wrapper
+       milestone) before the real render pass below. */
     {
         static const char *html_src =
             "<html><body>"
@@ -136,20 +137,70 @@ int main(void)
             "<p class=\"intro\">World <b>bold</b></p>"
             "<ul><li>One<li>Two</ul>"
             "</body></html>";
-        Eng_HtmlDocument *doc = eng_html_parse(html_src, strlen(html_src));
-        if (doc) {
+        Eng_HtmlDocument *check_doc = eng_html_parse(html_src, strlen(html_src));
+        if (check_doc) {
             ENG_LOG_INFO("app", "HTML probe: parsed, walking tree");
-            log_html_tree(eng_html_document_root(doc), 0);
-            eng_html_document_destroy(doc);
+            log_html_tree(eng_html_document_root(check_doc), 0);
+            eng_html_document_destroy(check_doc);
         } else {
             ENG_LOG_ERROR("app", "HTML probe failed to parse");
         }
     }
 
+    /* DOM->causality render bridge demo: a small static page (headings,
+       paragraphs, a list, a link, an image placeholder) styled with a
+       real parsed stylesheet, rendered through eng_dom_render. No
+       network fetch or JS-driven DOM mutation yet — see
+       .context/browser-dom-bridge.md for what's still missing before
+       this can point at a live URL. */
+    static const char *page_css =
+        ".body { background: #202124; padding: 24px; gap: 12px; }"
+        "h1 { color: #e8eaed; }"
+        "p { color: #bdc1c6; }"
+        ".intro { color: #8ab4f8; }";
+    /* eng_dom_default_css supplies the "tag-b"/"tag-a"/etc. rules that
+       give inline elements their expected weight/color (see
+       dom_bridge.h) — concatenated with the page's own CSS into one
+       source string since causality resolves classes against exactly
+       one attached Ca_Stylesheet at a time (ca_instance_set_stylesheet
+       replaces, not layers). */
+    char combined_css[2048];
+    snprintf(combined_css, sizeof(combined_css), "%s%s",
+             eng_dom_default_css, page_css);
+    Ca_Stylesheet *page_sheet = ca_css_parse(combined_css);
+    if (page_sheet) ca_instance_set_stylesheet(instance, page_sheet);
+
+    static const char *page_html =
+        "<html><body>"
+        "<h1>Causality Browser</h1>"
+        "<p class=\"intro\">Rendered from HTML via the DOM bridge — no network yet.</p>"
+        "<p>This paragraph, the list below, and the image placeholder all "
+        "came from <a href=\"#\">gumbo-parsed</a> markup, walked by "
+        "<b>eng_dom_render</b> and emitted as real causality UI calls.</p>"
+        "<ul><li>Headings and paragraphs</li><li>Inline elements (bold, links)</li>"
+        "<li>Image placeholders (no decoder/fetch yet)</li></ul>"
+        "<img alt=\"demo placeholder\">"
+        "</body></html>";
+    Eng_HtmlDocument *page_doc = eng_html_parse(page_html, strlen(page_html));
+    if (!page_doc) {
+        ENG_LOG_FATAL("app", "failed to parse demo page");
+        ca_instance_destroy(instance);
+        eng_engine_shutdown(&engine);
+        return 1;
+    }
+
+    ca_ui_begin(window, &(Ca_DivDesc){ .direction = CA_VERTICAL, .style = "body" });
+        Ca_Div *content = ca_div_begin(&(Ca_DivDesc){ .direction = CA_VERTICAL, .gap = 8 });
+        ca_div_set_builder(content, eng_dom_render_builder, page_doc);
+        ca_div_end();
+    ca_ui_end();
+
     while (ca_instance_tick(instance)) {
         eng_js_runtime_run_jobs(engine.js);
     }
 
+    eng_html_document_destroy(page_doc);
+    if (page_sheet) ca_css_destroy(page_sheet);
     ca_instance_destroy(instance);
     eng_engine_shutdown(&engine);
     return 0;

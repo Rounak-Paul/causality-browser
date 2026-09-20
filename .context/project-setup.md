@@ -5,12 +5,20 @@ immediate-mode UI library, git submodule) for windowing/rendering,
 `vendors/quickjs` (quickjs-ng, git submodule) for JS execution, and
 `vendors/gumbo` (gumbo-parser, git submodule) for HTML5 parsing.
 
-**Important gap, not yet built**: causality's CSS parser (`ca_css_parse`)
-and gumbo's HTML parser are both real and both integrated, but nothing
-yet connects gumbo's DOM tree to causality's `ca_div_begin`/`ca_text`
-builder calls. That bridge — walk parsed HTML, resolve CSS against it,
-emit causality UI nodes — is unwritten. See "What's NOT covered" at the
-bottom of `.context/engine-html-parser.md`.
+**Causality is co-evolving with this project, not a frozen dependency.**
+`vendors/causality` is the user's own repo (also consumed by a separate
+project, Sol) — extend/refactor it in place as the browser's real needs
+surface gaps, staying additive/non-breaking for Sol. See
+`.context/causality-coevolution.md` for the full mandate before touching
+anything under `vendors/causality/`.
+
+The offline DOM→causality render bridge (parse HTML, walk it, emit
+`ca_div_begin`/`ca_text` calls styled via causality's own CSS cascade) is
+now built — see `.context/browser-dom-bridge.md`. Still missing before a
+live URL can render: network fetch, linked-stylesheet extraction, real
+inline text flow (currently hacked via horizontal-flex divs — first
+candidate for a real causality extension), image decoding, JS DOM
+bindings. Full list in that file's closing section.
 
 ## Layout
 - `CMakeLists.txt` — top-level; adds `vendors/causality`, `vendors/quickjs`
@@ -54,15 +62,24 @@ bottom of `.context/engine-html-parser.md`.
   - `html/html_parser.{h,c}` — `Eng_HtmlDocument`/`Eng_HtmlNode`, thin
     wrapper over gumbo-parser; raw `GumboOutput*`/`GumboNode*` never cross
     this header.
+- `src/browser/` — browser-domain logic (not reusable engine internals).
+  See `.context/browser-dom-bridge.md` for the render bridge design.
+  - `dom_bridge.{h,c}` — `eng_dom_render`/`eng_dom_render_builder`: walks
+    an `Eng_HtmlDocument` and emits the equivalent causality UI tree.
+    Pure function, no persistent state (causality's builder is
+    immediate-mode — re-walks and re-emits every call each time it
+    runs). CSS resolution is NOT done here — causality's own
+    `ca_div_begin`/etc. already resolve `id`/`style` against the
+    attached `Ca_Stylesheet` internally.
+  - Future home for tab/navigation/network code once that work starts.
 - `src/main.c` — entry point. Currently: `eng_engine_init` → causality
   instance/window → a startup smoke-test job (exercises job system +
   event bus + logger together) → a JS context eval smoke test → an HTML
-  parse + tree-walk smoke test → tick loop (drains pending JS microtasks
-  each frame via `eng_js_runtime_run_jobs`) → `ca_instance_destroy` →
-  `eng_engine_shutdown`. Base to extend with actual browser UI/logic.
-- `src/browser/` — reserved, not yet created. Intended home for
-  tab/navigation/network code AND the DOM→causality render bridge once
-  that work starts; keeps browser-domain logic out of `engine/`.
+  parse + tree-walk smoke test → **a real rendered demo page** (parsed
+  CSS attached to the instance, parsed HTML rendered via
+  `ca_div_set_builder` + `eng_dom_render_builder`) → tick loop (drains
+  pending JS microtasks each frame via `eng_js_runtime_run_jobs`) →
+  `ca_instance_destroy` → `eng_engine_shutdown`.
 - `vendors/causality/` — submodule (nested submodules: glfw, glm, vma,
   freetype+dlg). Init with `git submodule update --init --recursive`.
 - `vendors/quickjs/` — submodule, quickjs-ng, pinned to tag `v0.17.0`. MIT
