@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "engine/engine.h"
+#include "engine/html/html_parser.h"
 
 /* App-level event ids, defined past the engine's reserved range. */
 enum {
@@ -22,6 +23,38 @@ static void startup_probe_job(void *user_data)
     Eng_Engine *engine = (Eng_Engine *)user_data;
     ENG_LOG_INFO("app", "startup probe job ran on a worker thread");
     eng_event_publish(engine->events, EVT_ENGINE_READY, NULL, 0);
+}
+
+/* Recursively logs an element/text tree, proving child + attribute
+   traversal works end to end rather than just top-level parse success. */
+static void log_html_tree(const Eng_HtmlNode *node, int depth)
+{
+    if (!node) return;
+
+    char indent[64];
+    int  pad = depth * 2 < (int)sizeof(indent) - 1 ? depth * 2 : (int)sizeof(indent) - 1;
+    memset(indent, ' ', (size_t)pad);
+    indent[pad] = '\0';
+
+    if (eng_html_node_type(node) == ENG_HTML_NODE_ELEMENT) {
+        const char *tag = eng_html_node_tag_name(node);
+        int attr_count = eng_html_node_attribute_count(node);
+        if (attr_count > 0) {
+            Eng_HtmlAttribute attr = eng_html_node_attribute(node, 0);
+            ENG_LOG_INFO("html", "%s<%s %s=\"%s\"> (%d attr, %d children)",
+                         indent, tag, attr.name, attr.value, attr_count,
+                         eng_html_node_child_count(node));
+        } else {
+            ENG_LOG_INFO("html", "%s<%s> (%d children)", indent, tag,
+                         eng_html_node_child_count(node));
+        }
+        for (int i = 0; i < eng_html_node_child_count(node); ++i)
+            log_html_tree(eng_html_node_child(node, i), depth + 1);
+    } else if (eng_html_node_type(node) == ENG_HTML_NODE_TEXT) {
+        const char *text = eng_html_node_text(node);
+        if (text && text[0] != '\0')
+            ENG_LOG_INFO("html", "%s\"%s\"", indent, text);
+    }
 }
 
 /**
@@ -91,6 +124,26 @@ int main(void)
         eng_js_context_destroy(js_ctx);
     } else {
         ENG_LOG_ERROR("app", "failed to create JS context");
+    }
+
+    /* HTML smoke test: parse a small fragment (including a deliberately
+       unclosed tag, to confirm gumbo's error-recovery path runs cleanly
+       through the wrapper) and walk the resulting tree. */
+    {
+        static const char *html_src =
+            "<html><body>"
+            "<h1 id=\"title\">Hello</h1>"
+            "<p class=\"intro\">World <b>bold</b></p>"
+            "<ul><li>One<li>Two</ul>"
+            "</body></html>";
+        Eng_HtmlDocument *doc = eng_html_parse(html_src, strlen(html_src));
+        if (doc) {
+            ENG_LOG_INFO("app", "HTML probe: parsed, walking tree");
+            log_html_tree(eng_html_document_root(doc), 0);
+            eng_html_document_destroy(doc);
+        } else {
+            ENG_LOG_ERROR("app", "HTML probe failed to parse");
+        }
     }
 
     while (ca_instance_tick(instance)) {

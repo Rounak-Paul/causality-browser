@@ -33,4 +33,11 @@ add_subdirectory(vendors/causality)
 set(QJS_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
 add_subdirectory(vendors/quickjs EXCLUDE_FROM_ALL)
 
+# gumbo — HTML5 parser. Upstream ships a Meson-only build with no CMake
+# support; cmake/gumbo.cmake (our own file, tracked in this repo — not
+# inside the vendors/gumbo submodule, see its header comment for why)
+# compiles gumbo's library sources directly and defines the `gumbo`
+# target.
+include(cmake/gumbo.cmake)
+
 add_subdirectory(src)
