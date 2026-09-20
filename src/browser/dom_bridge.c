@@ -159,6 +159,36 @@ static void render_inline_text(const Eng_HtmlNode *node, const char *tag)
     });
 }
 
+/* Emits every child of `node` as flat inline runs (ca_text calls) —
+   shared by any block whose content is prose (has_only_inline_content):
+   a normal <p>/<h1>/etc. and an <li>'s own content both use this. Must
+   be called with an inline_flow div already open (ca_div_begin), since
+   causality's ca_inline_layout expects flat CA_WIDGET_LABEL children,
+   one per run, not a nested div per inline element. */
+static void render_inline_content(const Eng_HtmlNode *node)
+{
+    int count = eng_html_node_child_count(node);
+    for (int i = 0; i < count; ++i) {
+        const Eng_HtmlNode *child = eng_html_node_child(node, i);
+        Eng_HtmlNodeType type = eng_html_node_type(child);
+        if (type == ENG_HTML_NODE_TEXT) {
+            const char *text = eng_html_node_text(child);
+            if (!is_blank(text)) ca_text(&(Ca_TextDesc){ .text = text });
+        } else if (type == ENG_HTML_NODE_ELEMENT) {
+            TagKind child_kind = tag_kind_for(eng_html_node_tag_name(child));
+            if (child_kind == TAG_BREAK) {
+                /* A hard line break mid-paragraph: not representable as
+                   an inline run in this first implementation (see
+                   inline_layout.c's scope) — silently omitted rather
+                   than mis-rendered. Accepted simplification. */
+                continue;
+            }
+            if (child_kind == TAG_INLINE)
+                render_inline_text(child, eng_html_node_tag_name(child));
+        }
+    }
+}
+
 static void render_element(const Eng_HtmlNode *node)
 {
     const char *tag = eng_html_node_tag_name(node);
@@ -208,6 +238,42 @@ static void render_element(const Eng_HtmlNode *node)
         return;
     }
 
+    /* <ul>/<ol>: indent the whole list; causality's list primitives
+       (ca_list_begin/ca_li_begin) are plain divs with no built-in
+       marker glyph or default indentation (verified — see
+       vendors/causality/causality/src/ui/widget.c), so both are
+       supplied here rather than relying on causality to draw them. */
+    if (tag && (strcmp(tag, "ul") == 0 || strcmp(tag, "ol") == 0)) {
+        ca_div_begin(&(Ca_DivDesc){
+            .id = id, .style = class,
+            .direction = CA_VERTICAL, .gap = 2,
+            .padding = { 0, 0, 0, 20 },
+        });
+        render_children(node);
+        ca_div_end();
+        return;
+    }
+
+    /* <li>: a literal bullet glyph + content, side by side. Ordered-list
+       numbering (<ol>) is not distinguished from unordered (<ul>) yet —
+       both render a bullet; real numbering would need this element's
+       index among its <ol> parent's <li> siblings threaded through, not
+       attempted in this first pass. */
+    if (tag && strcmp(tag, "li") == 0) {
+        ca_div_begin(&(Ca_DivDesc){
+            .id = id, .style = class,
+            .direction = CA_HORIZONTAL, .gap = 8,
+        });
+        ca_text(&(Ca_TextDesc){ .text = "\xE2\x80\xA2" }); /* U+2022 BULLET */
+        bool li_inline = has_only_inline_content(node);
+        ca_div_begin(&(Ca_DivDesc){ .direction = CA_VERTICAL, .inline_flow = li_inline });
+        if (li_inline) render_inline_content(node);
+        else            render_children(node);
+        ca_div_end();
+        ca_div_end();
+        return;
+    }
+
     bool inline_flow = has_only_inline_content(node);
     Ca_DivDesc desc = {
         .id = id, .style = class,
@@ -215,39 +281,8 @@ static void render_element(const Eng_HtmlNode *node)
         .inline_flow = inline_flow,
     };
     ca_div_begin(&desc);
-    if (inline_flow) {
-        /* Emit each child as its own ca_text run rather than recursing
-           through render_node's normal element/text dispatch — an
-           inline_flow container's word-wrap pass (causality's
-           ca_inline_layout) expects flat CA_WIDGET_LABEL children, one
-           per run, not a nested div per inline element. */
-        int count = eng_html_node_child_count(node);
-        for (int i = 0; i < count; ++i) {
-            const Eng_HtmlNode *child = eng_html_node_child(node, i);
-            Eng_HtmlNodeType type = eng_html_node_type(child);
-            if (type == ENG_HTML_NODE_TEXT) {
-                const char *text = eng_html_node_text(child);
-                if (!is_blank(text)) ca_text(&(Ca_TextDesc){ .text = text });
-            } else if (type == ENG_HTML_NODE_ELEMENT) {
-                TagKind child_kind = tag_kind_for(eng_html_node_tag_name(child));
-                if (child_kind == TAG_BREAK) {
-                    /* A hard line break mid-paragraph: not representable
-                       as an inline run in this first implementation (see
-                       inline_layout.c's scope) — best available fallback
-                       is a literal newline appended to the run before it,
-                       which paint_inline_run's underlying word-wrap
-                       still packs as plain text rather than a real
-                       break. Accepted simplification, not silently
-                       dropped. */
-                    continue;
-                }
-                if (child_kind == TAG_INLINE)
-                    render_inline_text(child, eng_html_node_tag_name(child));
-            }
-        }
-    } else {
-        render_children(node);
-    }
+    if (inline_flow) render_inline_content(node);
+    else              render_children(node);
     ca_div_end();
 }
 
