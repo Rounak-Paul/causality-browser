@@ -28,6 +28,18 @@ bool eng_engine_init(Eng_Engine *engine, int worker_count)
         return false;
     }
 
+    /* 0 = no memory cap for now; revisit once per-tab budgets matter. */
+    engine->js = eng_js_runtime_create(0);
+    if (!engine->js) {
+        ENG_LOG_FATAL("engine", "failed to create JS runtime");
+        eng_job_system_destroy(engine->jobs);
+        engine->jobs = NULL;
+        eng_event_bus_destroy(engine->events);
+        engine->events = NULL;
+        eng_log_shutdown();
+        return false;
+    }
+
     ENG_LOG_INFO("engine", "ready (%d worker thread(s))",
                  eng_job_system_worker_count(engine->jobs));
     return true;
@@ -39,6 +51,7 @@ void eng_engine_shutdown(Eng_Engine *engine)
 
     ENG_LOG_INFO("engine", "shutting down");
 
+    if (engine->js)     eng_js_runtime_destroy(engine->js);
     if (engine->jobs)   eng_job_system_destroy(engine->jobs);
     if (engine->events) eng_event_bus_destroy(engine->events);
 

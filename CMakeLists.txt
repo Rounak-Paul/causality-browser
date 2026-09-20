@@ -21,4 +21,16 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 add_subdirectory(vendors/causality)
 
+# quickjs-ng — embedded JS engine. Its own CMakeLists.txt defaults
+# QJS_ENABLE_INSTALL to ON (adds install() rules for a standalone quickjs
+# package) and BUILD_SHARED_LIBS to OFF (already matches this project's
+# static-link convention) — only the install rules need overriding here.
+# EXCLUDE_FROM_ALL keeps its unconditional CLI/test/tool executables
+# (qjs_exe, qjsc, api-test, lre-test, run-test262, unicode_gen — none of
+# them gated by BUILD_TESTING upstream) out of the default build; the
+# `qjs` static library target we actually link still builds on demand as
+# a real dependency of causality_browser.
+set(QJS_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+add_subdirectory(vendors/quickjs EXCLUDE_FROM_ALL)
+
 add_subdirectory(src)

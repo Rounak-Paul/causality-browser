@@ -2,6 +2,7 @@
 // Copyright 2026 Rounak Paul.
 
 #include <causality.h>
+#include <string.h>
 
 #include "engine/engine.h"
 
@@ -75,7 +76,26 @@ int main(void)
     eng_job_counter_destroy(startup_counter);
     eng_event_unsubscribe(engine.events, sub);
 
-    while (ca_instance_tick(instance)) { }
+    /* JS smoke test: one context (the eventual per-tab scope), evaluate
+       a trivial expression, log the result. */
+    Eng_JsContext *js_ctx = eng_js_context_create(engine.js);
+    if (js_ctx) {
+        static const char *probe_src = "1 + 2 * 3";
+        Eng_JsResult js_result = eng_js_eval(js_ctx, probe_src,
+                                              strlen(probe_src), "<startup-probe>");
+        if (js_result.ok)
+            ENG_LOG_INFO("app", "JS probe result: %s", js_result.value);
+        else
+            ENG_LOG_ERROR("app", "JS probe failed: %s", js_result.error);
+        eng_js_result_free(&js_result);
+        eng_js_context_destroy(js_ctx);
+    } else {
+        ENG_LOG_ERROR("app", "failed to create JS context");
+    }
+
+    while (ca_instance_tick(instance)) {
+        eng_js_runtime_run_jobs(engine.js);
+    }
 
     ca_instance_destroy(instance);
     eng_engine_shutdown(&engine);

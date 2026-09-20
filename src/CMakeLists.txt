@@ -9,4 +9,4 @@ target_include_directories(causality_browser PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(causality_browser PRIVATE causality)
+target_link_libraries(causality_browser PRIVATE causality qjs)
