@@ -7,6 +7,7 @@
 
 #include "engine/engine.h"
 #include "engine/html/html_parser.h"
+#include "engine/net/net_fetch.h"
 #include "browser/dom_bridge.h"
 
 /* App-level event ids, defined past the engine's reserved range. */
@@ -25,6 +26,19 @@ static void startup_probe_job(void *user_data)
     Eng_Engine *engine = (Eng_Engine *)user_data;
     ENG_LOG_INFO("app", "startup probe job ran on a worker thread");
     eng_event_publish(engine->events, EVT_ENGINE_READY, NULL, 0);
+}
+
+static void on_fetch_complete(const Eng_NetResult *result, void *user_data)
+{
+    (void)user_data;
+    if (result->ok) {
+        ENG_LOG_INFO("app", "fetch probe: %s -> HTTP %d, %zu bytes, content-type=%s",
+                     result->url, result->status, result->body_len,
+                     result->content_type ? result->content_type : "(none)");
+    } else {
+        ENG_LOG_ERROR("app", "fetch probe: %s failed: %s",
+                      result->url, result->error);
+    }
 }
 
 /* Recursively logs an element/text tree, proving child + attribute
@@ -127,6 +141,18 @@ int main(void)
     } else {
         ENG_LOG_ERROR("app", "failed to create JS context");
     }
+
+    /* Network smoke test: fetch a real URL off the job system, block on
+       a counter until it completes (mirrors the startup-probe-job
+       pattern above), log the result. Proves the full
+       Eng_NetSystem -> job system -> curl -> callback pipeline works
+       end to end against a live server, not just compiles. */
+    Eng_JobCounter *fetch_counter = eng_job_counter_create();
+    eng_net_fetch(engine.net, engine.jobs,
+                 "https://example.com/",
+                 on_fetch_complete, NULL, engine.events, fetch_counter);
+    eng_job_wait_counter(fetch_counter);
+    eng_job_counter_destroy(fetch_counter);
 
     /* HTML tree-walk sanity check (log-only, kept from the parser wrapper
        milestone) before the real render pass below. */

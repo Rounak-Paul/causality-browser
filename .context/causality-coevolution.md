@@ -50,12 +50,20 @@ the exact same causality repo. This changes how work proceeds:
 5. Bump the pin: `git add vendors/causality` in causality-browser,
    commit there too.
 
-## Known first gap: inline layout
-Causality's layout is flexbox-only (`CA_HORIZONTAL`/`CA_VERTICAL` divs);
-there's no real inline-flow model, so [[browser-dom-bridge]]'s
-`TAG_INLINE` currently fakes `<span>`/`<b>`/`<a>` as horizontal-direction
-divs — this does not actually wrap text inline the way a browser's real
-inline formatting context does (mixed inline+text children on one
-flowing line, wrapping at the container edge). This is the leading
-candidate for the first real causality extension once the offline DOM
-bridge milestone is otherwise solid.
+## First gap closed: inline layout (2026-09-21)
+Causality's layout was flexbox-only (`CA_HORIZONTAL`/`CA_VERTICAL` divs);
+no real inline-flow model existed. Added `Ca_DivDesc.inline_flow` — a
+real inline formatting context where mixed text + inline elements wrap
+together on shared lines, generalizing the existing single-string
+word-wrap algorithm to span multiple sibling nodes. Committed and pushed
+to `origin`. Full design/implementation notes in
+`vendors/causality/.context/inline-formatting-context.md` (lives inside
+the submodule's own `.context/`, matching its existing convention — not
+duplicated here). [[browser-dom-bridge]] now uses this instead of the
+old horizontal-flex-div hack.
+
+First-pass scope, not yet closed: text-only (no click-target
+hit-testing inside an inline run — a clickable `<a>` mid-sentence isn't
+interactive yet), no nested inline sub-containers, `display: inline` in
+CSS isn't auto-derived into `inline_flow` yet (opt-in via the field
+only). See the causality-side doc for the full list.

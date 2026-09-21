@@ -40,4 +40,13 @@ add_subdirectory(vendors/quickjs EXCLUDE_FROM_ALL)
 # target.
 include(cmake/gumbo.cmake)
 
+# libcurl — HTTP(S) fetch. Not vendored: curl's own CMake build has no
+# bundled/vendored TLS backend option (OpenSSL, mbedTLS, etc. are all
+# external deps upstream), so vendoring curl would mean also vendoring
+# and maintaining a TLS library indefinitely — a much bigger and more
+# security-sensitive undertaking than gumbo/quickjs. macOS and Linux both
+# ship libcurl with a working TLS backend out of the box; find_package
+# here is the same pattern already used for Vulkan.
+find_package(CURL REQUIRED)
+
 add_subdirectory(src)

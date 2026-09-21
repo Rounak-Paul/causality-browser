@@ -40,6 +40,19 @@ bool eng_engine_init(Eng_Engine *engine, int worker_count)
         return false;
     }
 
+    engine->net = eng_net_system_create();
+    if (!engine->net) {
+        ENG_LOG_FATAL("engine", "failed to create net system");
+        eng_js_runtime_destroy(engine->js);
+        engine->js = NULL;
+        eng_job_system_destroy(engine->jobs);
+        engine->jobs = NULL;
+        eng_event_bus_destroy(engine->events);
+        engine->events = NULL;
+        eng_log_shutdown();
+        return false;
+    }
+
     ENG_LOG_INFO("engine", "ready (%d worker thread(s))",
                  eng_job_system_worker_count(engine->jobs));
     return true;
@@ -51,6 +64,7 @@ void eng_engine_shutdown(Eng_Engine *engine)
 
     ENG_LOG_INFO("engine", "shutting down");
 
+    if (engine->net)    eng_net_system_destroy(engine->net);
     if (engine->js)     eng_js_runtime_destroy(engine->js);
     if (engine->jobs)   eng_job_system_destroy(engine->jobs);
     if (engine->events) eng_event_bus_destroy(engine->events);

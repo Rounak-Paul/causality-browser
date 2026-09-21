@@ -7,23 +7,25 @@
 #include "core/job_system.h"
 #include "core/logger.h"
 #include "js/js_runtime.h"
+#include "net/net_fetch.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /** Owns the lifetime and startup/shutdown order of engine-wide
-    subsystems (logger, event bus, job system, JS runtime). One instance
-    per process. */
+    subsystems (logger, event bus, job system, JS runtime, net). One
+    instance per process. */
 typedef struct Eng_Engine {
     Eng_EventBus  *events;
     Eng_JobSystem *jobs;
     Eng_JsRuntime *js;
+    Eng_NetSystem *net;
 } Eng_Engine;
 
 /**
- * Initializes the logger, event bus, job system, and JS runtime in
- * dependency order.
+ * Initializes the logger, event bus, job system, JS runtime, and net
+ * system in dependency order.
  *
  * engine        Engine instance to populate; zero-initialize before
  *               calling (a stack or static Eng_Engine works).
