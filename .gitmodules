@@ -1,9 +1,4 @@
 [submodule "vendors/causality"]
 	path = vendors/causality
 	url = https://github.com/Rounak-Paul/causality.git
-[submodule "vendors/quickjs"]
-	path = vendors/quickjs
-	url = https://github.com/quickjs-ng/quickjs.git
-[submodule "vendors/gumbo"]
-	path = vendors/gumbo
-	url = https://codeberg.org/gumbo-parser/gumbo-parser.git
+	branch = main
