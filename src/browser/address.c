@@ -76,3 +76,58 @@ bool browser_address_resolve(const char *input, char *output, size_t capacity)
     output[prefix_length + length] = '\0';
     return true;
 }
+
+bool browser_address_or_search(const char *input, char *output, size_t capacity)
+{
+    while (address_space(*input))
+        ++input;
+
+    size_t length = strlen(input);
+    while (length && address_space(input[length - 1]))
+        --length;
+    if (!length)
+        return false;
+
+    size_t authority = 0;
+    while (authority < length && !address_space(input[authority]) &&
+           !strchr("/?#", input[authority]))
+        ++authority;
+    if ((authority == 5 && address_prefix(input, "http:", 5)) ||
+        (authority == 6 && address_prefix(input, "https:", 6))) {
+        return length > authority + 2 && input[authority] == '/' &&
+               input[authority + 1] == '/' &&
+               browser_address_resolve(input, output, capacity);
+    }
+    if (memchr(input, ':', authority) || input[0] == '[' || input[0] == '/')
+        return browser_address_resolve(input, output, capacity);
+
+    bool single_token = true;
+    for (size_t i = 0; i < length; ++i)
+        single_token &= !address_space(input[i]);
+    if (single_token && ((authority == 9 && address_prefix(input, "localhost", 9)) ||
+                         memchr(input, '.', authority)))
+        return browser_address_resolve(input, output, capacity);
+
+    static const char prefix[] = "https://duckduckgo.com/?q=";
+    static const char hex[] = "0123456789ABCDEF";
+    size_t used = sizeof(prefix) - 1;
+    if (capacity <= used)
+        return false;
+    memcpy(output, prefix, used);
+    for (size_t i = 0; i < length; ++i) {
+        unsigned char byte = (unsigned char)input[i];
+        bool plain = (byte >= 'a' && byte <= 'z') || (byte >= 'A' && byte <= 'Z') ||
+                     (byte >= '0' && byte <= '9') || strchr("-._~", byte);
+        if (capacity - used <= (plain ? 1u : 3u))
+            return false;
+        if (plain) {
+            output[used++] = (char)byte;
+        } else {
+            output[used++] = '%';
+            output[used++] = hex[byte >> 4];
+            output[used++] = hex[byte & 15u];
+        }
+    }
+    output[used] = '\0';
+    return true;
+}

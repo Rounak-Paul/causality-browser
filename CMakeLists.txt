@@ -27,6 +27,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vendors/causality/CMakeLists.txt")
 endif()
 
 if(APPLE)
+    enable_language(OBJC)
     # HVF adds a dependency on libhvf, which is absent on older macOS releases.
     set(FT_DISABLE_HVF ON)
     include(cmake/StaticMoltenVK.cmake)

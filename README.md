@@ -1,8 +1,33 @@
 # Causality Browser
 
-A desktop browser foundation built on Causality's native WebView. The window
-has an address bar, back and forward navigation, and reload and stop controls.
-Links that request another window open in the current view.
+A desktop browser foundation built on Causality's native WebView. The
+bottom address dock and Start Page open websites or search with DuckDuckGo.
+The address field's trailing control switches between Go, Reload, and Stop.
+Links that request another window open in a tab.
+
+The Causality title bar and tab panel share a solid theme color. The page
+sits inside a rounded frame with a thin edge and slim right and bottom
+gutters. The Causality address dock floats over the page on macOS 26 and
+later. Other builds place it in a compact bottom lane.
+
+## Tabs
+
+Use **+** on the left tab panel to open a tab. The bottom **›** expands the rail to
+show tab titles and group names. **‹** returns to tab icons and folder tiles.
+Click a folder to show or hide its tabs.
+
+Drag one tab onto another to group them, or drop a tab onto an existing
+folder. In the expanded rail, the folder button next to **Tabs** can create
+a named group or move the active tab. A group's **+** opens a tab inside it,
+and **×** removes the group while keeping its tabs. An individual tab's **×**
+closes that tab. Tabs and groups are kept for the current session.
+
+## Appearance
+
+Open the **…** browser menu to return to the Start Page, copy the current
+address, or change page zoom. Under **Appearance**, choose **Dark**,
+**Light**, or **Dusk**. The palette applies immediately to the browser chrome
+and is saved for your next launch. Websites render their own styles.
 
 ## Build
 
