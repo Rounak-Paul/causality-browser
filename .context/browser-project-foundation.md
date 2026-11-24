@@ -5,8 +5,12 @@
 - `src/main.c` handles launch arguments. `src/browser/window.c` owns the
   single-window chrome and Causality WebView, and `address.c` resolves
   address-bar input to HTTP(S).
-- Native backend availability comes from `ca_webview_supported()`. At
-  `d24287d`, macOS hosts WKWebView and other desktop platforms have a stub.
+- Native backend availability comes from `ca_webview_supported()`. Causality
+  `40e4256` provides WKWebView on macOS, WebView2 on Windows, and WebKitGTK
+  on Linux/X11 when the build and runtime dependencies are present.
+- On this pin, the macOS composition smoke check passed on arm64 and x86_64
+  under Rosetta, including WebView visibility during debug overlay toggles.
+  The grouped-tab smoke check passed on arm64.
 - On macOS GLFW and Causality use the same static MoltenVK implementation.
   FreeType HVF is disabled to avoid a newer OS library dependency. On
   Windows the browser matches Causality's MSVC CRT mode.

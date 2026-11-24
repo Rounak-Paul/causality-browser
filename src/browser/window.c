@@ -20,6 +20,16 @@
 #define BROWSER_NAME "Causality Browser"
 #define SEARCH_PLACEHOLDER "Search or enter a website"
 
+#if defined(_WIN32)
+static const char webview_unavailable[] =
+    "A WebView2-enabled build and the Microsoft Edge WebView2 Runtime are required.";
+#elif defined(__linux__)
+static const char webview_unavailable[] =
+    "A WebKitGTK-enabled build and an X11 or XWayland session are required.";
+#else
+static const char webview_unavailable[] = "The native WebView is unavailable.";
+#endif
+
 static const int zoom_levels[] = {50, 67, 80, 90, 100, 110, 125, 150, 175, 200, 250, 300};
 
 /** Owns one window's retained chrome, theme, and WebView state. */
@@ -700,8 +710,7 @@ static void build_window(BrowserWindow *browser, const char *initial_url)
         ca_set_hidden(browser->tabs.pages, true);
         ca_div_begin(&(Ca_DivDesc){.style = "unavailable"});
         ca_text(&(Ca_TextDesc){
-            .text = supported ? "The native WebView could not start."
-                              : "Causality WebView is unavailable on this platform.",
+            .text = supported ? "The native WebView could not start." : webview_unavailable,
             .style = "menu-heading",
             .wrap = true,
         });

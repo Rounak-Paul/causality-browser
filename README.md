@@ -50,20 +50,22 @@ or HTTPS address as its only launch argument.
   For one binary with both Mac architectures, pass
   `-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"` at configure time. The default
   deployment target is macOS 11, subject to the GPU and Vulkan requirements.
-- **Windows** uses Visual Studio's C/C++ tools and the Vulkan SDK. The target
-  computer needs a Vulkan 1.3-capable graphics driver and the MSVC runtime.
+- **Windows** uses Visual Studio's C/C++ tools and the Vulkan SDK. Extract the
+  `Microsoft.Web.WebView2` NuGet package and pass
+  `-DCAUSALITY_WEBVIEW2_SDK_DIR=C:/path/to/extracted/package` at configure
+  time. The executable links the WebView2 loader statically. The target computer
+  needs the Microsoft Edge WebView2 Runtime, the MSVC runtime, and a
+  Vulkan 1.3-capable graphics driver.
 - **Linux** uses a C/C++ toolchain and the Vulkan, shaderc, glslang,
-  SPIRV-Tools, and GLFW platform development dependencies. Run on a
-  compatible Linux distribution with its system libraries, display stack, and
-  a Vulkan 1.3-capable driver.
+  SPIRV-Tools, and GLFW platform development dependencies. Install the
+  `pkg-config` development packages for GTK 3 (`gtk+-3.0`) and
+  WebKitGTK (`webkit2gtk-4.1` or `webkit2gtk-4.0`). The target computer
+  needs the matching libraries, an X11 or XWayland session, and a
+  Vulkan 1.3-capable driver.
 
-Copy the executable for the destination's OS and architecture. Browser assets
-and project libraries are linked into it. The executable uses the destination
-OS's libraries and the GPU driver.
+CMake reports the selected Causality WebView backend at configure time.
+If the Windows or Linux SDK is missing at build time, the executable can
+open the browser shell and display a WebView availability message.
 
-## WebView support
-
-The pinned Causality revision implements WebView on macOS. On Windows and Linux
-the browser shell displays a message when the native WebView is unavailable.
-After updating the Causality submodule, rerun the build. The browser queries
-Causality at runtime, so a backend added upstream uses the same application code.
+Copy the executable for the destination's OS and architecture. The app uses
+the target system's libraries, GPU driver, and WebView runtime.
